@@ -322,15 +322,49 @@ bool startup()
 
 int cleanup()
 {
-	int ret = 0;
+	if (listen_sock != INVALID_SOCKET)
+	{
+		closesocket(listen_sock);
+		listen_sock = INVALID_SOCKET;
+	}
 
+	for (auto& it : session_map)
+	{
+		Session* session = it.second;
+		closesocket(session->sock);
 
+		auto ch_it = character_map.find(session->id);
+		if (ch_it != character_map.end())
+		{
+			Character* character = ch_it->second;
+			sector_2d[character->sector_pos.row][character->sector_pos.col].remove(character);
 
+			character_pool.dealloc(character);
 
+			character_map.erase(ch_it);
+		}
+
+		session_pool.dealloc(session);
+	}
+
+	session_map.clear();
+	character_map.clear();
+
+	WSACleanup();
+
+	for (int r = 0; r < SECTOR_ROW; ++r)
+	{
+		for (int c = 0; c < SECTOR_COL; ++c)
+		{
+			sector_2d[r][c].clear();
+		}
+	}
 
 	timeEndPeriod(1);
 
-	return ret;
+	LOG_SYS(L"CLEANUP", L"server cleanup complete");
+
+	return 0;
 }
 
 void stop(const wchar_t* caller, int line)
@@ -841,7 +875,7 @@ void send_proc(Session* session)
 		{
 			reserve_disconnect(session);
 
-			if (e_send != WSAECONNABORTED || e_send != WSAECONNRESET)
+			if (e_send != WSAECONNABORTED && e_send != WSAECONNRESET)
 			{
 				LOG_ERR(L"SENDPROC", L"send() failed: error code=%d", e_send);
 			}
@@ -1311,8 +1345,6 @@ bool dispatch(Session* session, unsigned char type, SerializeBuffer* msg)
 		return false;
 	}
 }
-
-
 
 bool cs_move_start(Session* session, SerializeBuffer* msg)
 {
