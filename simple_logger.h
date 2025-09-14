@@ -34,7 +34,7 @@ namespace tool
 
 		inline wchar_t buff[BUF_SIZE];
 
-		void init(Level level)
+		inline void init(Level level)
 		{
 			limit = level;
 
@@ -84,7 +84,7 @@ namespace tool
 			CloseHandle(hfile);
 		}
 
-		void write(Level level, const wchar_t* category)
+		inline void write(Level level, const wchar_t* category)
 		{
 			HANDLE hfile = CreateFileW(
 				filename,
